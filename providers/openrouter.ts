@@ -1,0 +1,161 @@
+import Adw from "gi://Adw";
+import Gio from "gi://Gio";
+import GLib from "gi://GLib";
+import Soup from "gi://Soup?version=3.0";
+
+Gio._promisify(Soup.Session.prototype, "send_and_read_async", "send_and_read_finish");
+
+import type { GettextFunc, IProvider, ProviderMetric, ProviderStatus } from "./base.js";
+import { buildApiKeyGroup, buildDebugGroup, buildPollingGroup } from "./prefs-widgets.js";
+
+const API_URL = "https://openrouter.ai/api/v1/key";
+
+interface OpenRouterKeyData
+{
+    label: string;
+    limit: number | null;
+    limit_remaining: number | null;
+    usage: number;
+    usage_daily: number;
+    usage_weekly: number;
+    usage_monthly: number;
+    is_free_tier: boolean;
+}
+
+interface OpenRouterKeyResponse
+{
+    data?: OpenRouterKeyData;
+}
+
+type MetricKey = "usage_monthly" | "usage_daily" | "limit_remaining" | "usage";
+
+const METRIC_LABELS: Record<MetricKey, string> = {
+    usage_monthly: "Monthly spend",
+    usage_daily: "Daily spend",
+    limit_remaining: "Credits remaining",
+    usage: "Total spend",
+};
+
+const METRIC_KEYS: MetricKey[] = ["usage_monthly", "usage_daily", "limit_remaining", "usage"];
+
+function _formatCredits(value: number | null | undefined, label: string): string
+{
+    if (value === null || value === undefined)
+    {
+        return `${label}: N/A`;
+    }
+    return `${label}: $${value.toFixed(4)}`;
+}
+
+function _formatPanelText(data: OpenRouterKeyData | undefined): string
+{
+    if (!data)
+    {
+        return "N/A";
+    }
+    return `$${data.usage_monthly.toFixed(4)}`;
+}
+
+export const OpenRouterProvider: IProvider = {
+    id: "openrouter",
+    displayName: "OpenRouter",
+    description: "Credit usage across all models",
+    iconName: "network-transmit-receive-symbolic",
+    settingsTokenKey: "openrouter-api-key",
+    settingsRawResponseKey: "openrouter-last-raw-response",
+    settingsEnabledKey: "openrouter-enabled",
+    metricLabels: METRIC_KEYS.map(k => METRIC_LABELS[k]),
+
+    async fetchStatus(
+        session: InstanceType<typeof Soup.Session>,
+        settings: Gio.Settings,
+    ): Promise<ProviderStatus>
+    {
+        const apiKey = settings.get_string("openrouter-api-key") ?? "";
+        if (!apiKey)
+        {
+            throw new Error("No OpenRouter API key configured");
+        }
+
+        const message = Soup.Message.new("GET", API_URL);
+        if (!message)
+        {
+            throw new Error(`Failed to construct Soup.Message for ${API_URL}`);
+        }
+
+        const headers = message.get_request_headers();
+        headers.append("Authorization", `Bearer ${apiKey}`);
+        headers.append("User-Agent", "gnome-ai-tracker/1.0");
+
+        const bytes = await session.send_and_read_async(message, GLib.PRIORITY_DEFAULT, null);
+
+        const status = message.get_status();
+        if (status !== Soup.Status.OK)
+        {
+            throw new Error(`OpenRouter API returned HTTP ${status}`);
+        }
+
+        const decoder = new TextDecoder("utf-8");
+        const raw = decoder.decode(bytes.get_data() ?? new Uint8Array());
+        const response = JSON.parse(raw) as OpenRouterKeyResponse;
+
+        const data = response?.data;
+        const panelText = _formatPanelText(data);
+
+        const metrics: ProviderMetric[] = [
+            {
+                label: METRIC_LABELS.usage_monthly,
+                value: _formatCredits(data?.usage_monthly, METRIC_LABELS.usage_monthly),
+                spend: data?.usage_monthly ?? undefined,
+                percent: (data?.limit !== null && data?.limit !== undefined && data.limit > 0)
+                    ? parseFloat(((data.usage_monthly / data.limit) * 100).toFixed(2))
+                    : undefined,
+            },
+            {
+                label: METRIC_LABELS.usage_daily,
+                value: _formatCredits(data?.usage_daily, METRIC_LABELS.usage_daily),
+                spend: data?.usage_daily ?? undefined,
+            },
+            {
+                label: METRIC_LABELS.limit_remaining,
+                value: _formatCredits(data?.limit_remaining, METRIC_LABELS.limit_remaining),
+                percent: (data?.limit !== null && data?.limit !== undefined && data.limit > 0 && data.limit_remaining !== null && data.limit_remaining !== undefined)
+                    ? parseFloat((((data.limit - data.limit_remaining) / data.limit) * 100).toFixed(2))
+                    : undefined,
+            },
+            {
+                label: METRIC_LABELS.usage,
+                value: _formatCredits(data?.usage, METRIC_LABELS.usage),
+                spend: data?.usage ?? undefined,
+            },
+        ];
+
+        return { panelText, metrics, rawResponse: raw };
+    },
+
+    buildPrefsPage(settings: Gio.Settings, _: GettextFunc): Adw.PreferencesPage
+    {
+        const page = new Adw.PreferencesPage();
+
+        page.add(buildApiKeyGroup(settings, {
+            title: "Authentication",
+            description: "Provide an OpenRouter API key. Obtain one at https://openrouter.ai/keys.",
+            rowTitle: "API Key",
+            settingsKey: "openrouter-api-key",
+        }, _));
+
+        page.add(buildPollingGroup(settings, {
+            intervalKey: "refresh-interval",
+            triggerKey: "refresh-trigger",
+            rawResponseKey: "openrouter-last-raw-response",
+            provider: OpenRouterProvider,
+        }, _));
+
+        page.add(buildDebugGroup(settings, {
+            rawResponseKey: "openrouter-last-raw-response",
+            apiDescription: _("Last response body received from the OpenRouter API"),
+        }, _));
+
+        return page;
+    },
+};

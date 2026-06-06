@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.gnome-ai-tracker"
+          path="/org/gnome/shell/extensions/gnome-ai-tracker/">
+    <key name="github-token" type="s">
+      <default>''</default>
+      <summary>GitHub Personal Access Token</summary>
+      <description>GitHub PAT or OAuth token used to authenticate against the GitHub Copilot API. Run `gh auth token` to get your current token.</description>
+    </key>
+    <key name="refresh-interval" type="i">
+      <default>300</default>
+      <summary>Refresh interval in seconds</summary>
+      <description>How often to poll the GitHub Copilot API for updated usage data.</description>
+    </key>
+    <key name="last-raw-response" type="s">
+      <default>''</default>
+      <summary>Last raw API response</summary>
+      <description>The most recent raw JSON response body from the GitHub Copilot API, used for debugging.</description>
+    </key>
+    <key name="refresh-trigger" type="i">
+      <default>0</default>
+      <summary>Refresh trigger</summary>
+      <description>Incrementing this value signals the extension to perform an immediate API refresh. Written by the preferences dialog.</description>
+    </key>
+    <key name="openrouter-api-key" type="s">
+      <default>''</default>
+      <summary>OpenRouter API Key</summary>
+      <description>API key for authenticating against the OpenRouter API. Obtain one at https://openrouter.ai/keys.</description>
+    </key>
+    <key name="openrouter-last-raw-response" type="s">
+      <default>''</default>
+      <summary>OpenRouter last raw API response</summary>
+      <description>The most recent raw JSON response body from the OpenRouter API, used for debugging.</description>
+    </key>
+    <key name="github-copilot-enabled" type="b">
+      <default>false</default>
+      <summary>GitHub Copilot provider enabled</summary>
+      <description>When false, the GitHub Copilot provider is not polled and is hidden from the panel menu.</description>
+    </key>
+    <key name="openrouter-enabled" type="b">
+      <default>false</default>
+      <summary>OpenRouter provider enabled</summary>
+      <description>When false, the OpenRouter provider is not polled and is hidden from the panel menu.</description>
+    </key>
+  </schema>
+</schemalist>

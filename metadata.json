@@ -1,0 +1,8 @@
+{
+  "name": "AI Usage Tracker",
+  "description": "Tracks your AI usage limits across various providers",
+  "uuid": "gnome-ai-tracker@example.com",
+  "shell-version": [
+    "50"
+  ]
+}
