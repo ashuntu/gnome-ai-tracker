@@ -3,7 +3,8 @@ import Gtk from "gi://Gtk?version=4.0";
 import Gio from "gi://Gio";
 import Soup from "gi://Soup?version=3.0";
 
-import type { GettextFunc, IProvider } from "./base.js";
+import type { GettextFunc, IProviderType, ProviderInstance } from "./base.js";
+import { loadInstances, saveInstances } from "./base.js";
 
 export interface ApiKeyGroupOptions
 {
@@ -13,16 +14,16 @@ export interface ApiKeyGroupOptions
     description: string;
     /** Row title label, e.g. "API Key" or "GitHub Token". */
     rowTitle: string;
-    /** GSettings key to bind to the entry's text property. */
-    settingsKey: string;
 }
 
 /**
  * Builds a standard authentication preferences group containing a single
- * masked password entry row bound to a GSettings key.
+ * masked password entry row. Changes are written back into the instance's
+ * apiKey field and persisted to the provider-instances settings key.
  */
 export function buildApiKeyGroup(
     settings: Gio.Settings,
+    instance: ProviderInstance,
     options: ApiKeyGroupOptions,
     _: GettextFunc,
 ): Adw.PreferencesGroup
@@ -34,8 +35,20 @@ export function buildApiKeyGroup(
 
     const tokenRow = new Adw.PasswordEntryRow({
         title: _(options.rowTitle),
+        text: instance.apiKey,
     });
-    settings.bind(options.settingsKey, tokenRow, "text", Gio.SettingsBindFlags.DEFAULT);
+
+    tokenRow.connect("notify::text", () =>
+    {
+        const instances = loadInstances(settings);
+        const idx = instances.findIndex(i => i.uuid === instance.uuid);
+        if (idx >= 0)
+        {
+            instances[idx].apiKey = tokenRow.get_text();
+            saveInstances(settings, instances);
+        }
+    });
+
     group.add(tokenRow);
 
     return group;
@@ -47,14 +60,13 @@ export interface PollingGroupOptions
     intervalKey: string;
     /** Settings key for the refresh trigger (integer, incremented to signal immediate refresh). */
     triggerKey: string;
-    /** Settings key where the raw response string is stored. */
-    rawResponseKey: string;
-    provider: IProvider;
+    provider: IProviderType;
+    instance: ProviderInstance;
 }
 
 /**
  * Builds the standard polling preferences group with a spin row and a manual
- * refresh button. Shared by all providers that poll a remote API on a timer.
+ * refresh button. Shared by all provider instance settings pages.
  */
 export function buildPollingGroup(
     settings: Gio.Settings,
@@ -127,10 +139,20 @@ export function buildPollingGroup(
         }
 
         setRefreshing(true);
-        options.provider.fetchStatus(session, settings)
+
+        const currentInstances = loadInstances(settings);
+        const current = currentInstances.find(i => i.uuid === options.instance.uuid) ?? options.instance;
+
+        options.provider.fetchStatus(session, current)
             .then(result =>
             {
-                settings.set_string(options.rawResponseKey, result.rawResponse);
+                const instances = loadInstances(settings);
+                const idx = instances.findIndex(i => i.uuid === options.instance.uuid);
+                if (idx >= 0)
+                {
+                    instances[idx].rawResponse = result.rawResponse;
+                    saveInstances(settings, instances);
+                }
                 settings.set_int(options.triggerKey, settings.get_int(options.triggerKey) + 1);
             })
             .catch(e => logError(e as Error, `${options.provider.id}.refreshButton`))
@@ -143,15 +165,13 @@ export function buildPollingGroup(
 
 export interface DebugGroupOptions
 {
-    /** Settings key where the raw response string is stored. */
-    rawResponseKey: string;
-    /** Human-readable description of the API the response came from. */
-    apiDescription: string;
+    instance: ProviderInstance;
 }
 
 /**
  * Builds the standard debug preferences group with an expandable raw API
- * response viewer. Shared by all providers.
+ * response viewer. Watches the provider-instances key for changes to the
+ * relevant instance's rawResponse field.
  */
 export function buildDebugGroup(
     settings: Gio.Settings,
@@ -165,7 +185,7 @@ export function buildDebugGroup(
 
     const expanderRow = new Adw.ExpanderRow({
         title: _("Raw API Response"),
-        subtitle: options.apiDescription,
+        subtitle: _("Last response body received from the API"),
     });
     group.add(expanderRow);
 
@@ -188,7 +208,9 @@ export function buildDebugGroup(
 
     const updateText = () =>
     {
-        const raw = settings.get_string(options.rawResponseKey);
+        const instances = loadInstances(settings);
+        const inst = instances.find(i => i.uuid === options.instance.uuid);
+        const raw = inst?.rawResponse ?? "";
         let formatted = raw;
         if (raw)
         {
@@ -205,7 +227,7 @@ export function buildDebugGroup(
     };
 
     updateText();
-    settings.connect(`changed::${options.rawResponseKey}`, updateText);
+    settings.connect("changed::provider-instances", updateText);
 
     expanderRow.add_row(scrolledWindow);
 

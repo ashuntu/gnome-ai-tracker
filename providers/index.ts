@@ -1,13 +1,14 @@
-export type { IProvider, ProviderMetric, ProviderStatus } from "./base.js";
-export { GitHubCopilotProvider } from "./github-copilot.js";
-export { OpenRouterProvider } from "./openrouter.js";
+export type { IProviderType, ProviderInstance, ProviderMetric, ProviderStatus } from "./base.js";
+export { loadInstances, saveInstances } from "./base.js";
+export { GitHubCopilotProviderType } from "./github-copilot.js";
+export { OpenRouterProviderType } from "./openrouter.js";
 
-import type { IProvider } from "./base.js";
-import { GitHubCopilotProvider } from "./github-copilot.js";
-import { OpenRouterProvider } from "./openrouter.js";
+import type { IProviderType } from "./base.js";
+import { GitHubCopilotProviderType } from "./github-copilot.js";
+import { OpenRouterProviderType } from "./openrouter.js";
 
-/** Ordered list of all registered providers. */
-export const PROVIDERS: IProvider[] = [
-    GitHubCopilotProvider,
-    OpenRouterProvider,
+/** Ordered list of all registered provider types. */
+export const PROVIDER_TYPES: IProviderType[] = [
+    GitHubCopilotProviderType,
+    OpenRouterProviderType,
 ];

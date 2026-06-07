@@ -1,12 +1,10 @@
-import Adw from "gi://Adw";
 import Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import Soup from "gi://Soup?version=3.0";
 
 Gio._promisify(Soup.Session.prototype, "send_and_read_async", "send_and_read_finish");
 
-import type { GettextFunc, IProvider, ProviderMetric, ProviderStatus } from "./base.js";
-import { buildApiKeyGroup, buildDebugGroup, buildPollingGroup } from "./prefs-widgets.js";
+import type { IProviderType, ProviderInstance, ProviderMetric, ProviderStatus } from "./base.js";
 
 const API_URL = "https://openrouter.ai/api/v1/key";
 
@@ -44,7 +42,7 @@ function _formatCredits(value: number | null | undefined, label: string): string
     {
         return `${label}: N/A`;
     }
-    return `${label}: $${value.toFixed(4)}`;
+    return `${label}: $${value.toFixed(2)}`;
 }
 
 function _formatPanelText(data: OpenRouterKeyData | undefined): string
@@ -53,25 +51,28 @@ function _formatPanelText(data: OpenRouterKeyData | undefined): string
     {
         return "N/A";
     }
-    return `$${data.usage_monthly.toFixed(4)}`;
+    if (data.limit !== null && data.limit !== undefined && data.limit > 0)
+    {
+        const pct = (data.usage_monthly / data.limit) * 100;
+        return `${pct.toFixed(2)}%`;
+    }
+    return `$${data.usage_monthly.toFixed(2)}`;
 }
 
-export const OpenRouterProvider: IProvider = {
+export const OpenRouterProviderType: IProviderType = {
     id: "openrouter",
     displayName: "OpenRouter",
     description: "Credit usage across all models",
     iconName: "network-transmit-receive-symbolic",
-    settingsTokenKey: "openrouter-api-key",
-    settingsRawResponseKey: "openrouter-last-raw-response",
-    settingsEnabledKey: "openrouter-enabled",
+    iconPath: "icons/openrouter-symbolic.svg",
     metricLabels: METRIC_KEYS.map(k => METRIC_LABELS[k]),
 
     async fetchStatus(
         session: InstanceType<typeof Soup.Session>,
-        settings: Gio.Settings,
+        instance: ProviderInstance,
     ): Promise<ProviderStatus>
     {
-        const apiKey = settings.get_string("openrouter-api-key") ?? "";
+        const apiKey = instance.apiKey;
         if (!apiKey)
         {
             throw new Error("No OpenRouter API key configured");
@@ -131,31 +132,5 @@ export const OpenRouterProvider: IProvider = {
         ];
 
         return { panelText, metrics, rawResponse: raw };
-    },
-
-    buildPrefsPage(settings: Gio.Settings, _: GettextFunc): Adw.PreferencesPage
-    {
-        const page = new Adw.PreferencesPage();
-
-        page.add(buildApiKeyGroup(settings, {
-            title: "Authentication",
-            description: "Provide an OpenRouter API key. Obtain one at https://openrouter.ai/keys.",
-            rowTitle: "API Key",
-            settingsKey: "openrouter-api-key",
-        }, _));
-
-        page.add(buildPollingGroup(settings, {
-            intervalKey: "refresh-interval",
-            triggerKey: "refresh-trigger",
-            rawResponseKey: "openrouter-last-raw-response",
-            provider: OpenRouterProvider,
-        }, _));
-
-        page.add(buildDebugGroup(settings, {
-            rawResponseKey: "openrouter-last-raw-response",
-            apiDescription: _("Last response body received from the OpenRouter API"),
-        }, _));
-
-        return page;
     },
 };

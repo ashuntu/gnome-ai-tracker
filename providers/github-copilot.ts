@@ -1,12 +1,10 @@
-import Adw from "gi://Adw";
 import Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import Soup from "gi://Soup?version=3.0";
 
 Gio._promisify(Soup.Session.prototype, "send_and_read_async", "send_and_read_finish");
 
-import type { GettextFunc, IProvider, ProviderMetric, ProviderStatus } from "./base.js";
-import { buildApiKeyGroup, buildDebugGroup, buildPollingGroup } from "./prefs-widgets.js";
+import type { IProviderType, ProviderInstance, ProviderMetric, ProviderStatus } from "./base.js";
 
 const API_URL = "https://api.github.com/copilot_internal/user";
 
@@ -45,23 +43,6 @@ const QUOTA_LABELS: Record<QuotaKey, string> = {
 
 const QUOTA_KEYS: QuotaKey[] = ["premium_interactions", "chat", "completions"];
 
-function _formatSnapshot(snapshot: QuotaSnapshot | undefined, label: string): string
-{
-    if (!snapshot)
-    {
-        return `${label}: N/A`;
-    }
-    if (snapshot.unlimited)
-    {
-        return `${label}: ∞`;
-    }
-    const used = snapshot.entitlement - snapshot.remaining;
-    const pct = snapshot.entitlement > 0
-        ? parseFloat(((used / snapshot.entitlement) * 100).toFixed(2))
-        : 0;
-    return `${label}: ${pct}%`;
-}
-
 function _formatPanelText(snapshot: QuotaSnapshot | undefined): string
 {
     if (!snapshot)
@@ -79,23 +60,20 @@ function _formatPanelText(snapshot: QuotaSnapshot | undefined): string
     return `${pct}%`;
 }
 
-export const GitHubCopilotProvider: IProvider = {
+export const GitHubCopilotProviderType: IProviderType = {
     id: "github-copilot",
     displayName: "GitHub Copilot",
     description: "Premium interactions and chat usage",
     iconName: "computer-symbolic",
     iconPath: "icons/copilot-symbolic.svg",
-    settingsTokenKey: "github-token",
-    settingsRawResponseKey: "last-raw-response",
-    settingsEnabledKey: "github-copilot-enabled",
     metricLabels: QUOTA_KEYS.map(k => QUOTA_LABELS[k]),
 
     async fetchStatus(
         session: InstanceType<typeof Soup.Session>,
-        settings: Gio.Settings,
+        instance: ProviderInstance,
     ): Promise<ProviderStatus>
     {
-        const token = settings.get_string("github-token") ?? "";
+        const token = instance.apiKey;
         if (!token)
         {
             throw new Error("No GitHub token configured");
@@ -127,7 +105,6 @@ export const GitHubCopilotProvider: IProvider = {
 
         const snapshots = data?.quota_snapshots;
         const primary = snapshots?.premium_interactions;
-
         const panelText = _formatPanelText(primary);
 
         const metrics: ProviderMetric[] = QUOTA_KEYS.map(key =>
@@ -135,7 +112,9 @@ export const GitHubCopilotProvider: IProvider = {
             const snap = snapshots?.[key];
             const metric: ProviderMetric = {
                 label: QUOTA_LABELS[key],
-                value: _formatSnapshot(snap, QUOTA_LABELS[key]),
+                value: snap
+                    ? (snap.unlimited ? "∞" : "N/A")
+                    : "N/A",
             };
             if (snap && !snap.unlimited && snap.entitlement > 0)
             {
@@ -147,31 +126,5 @@ export const GitHubCopilotProvider: IProvider = {
         });
 
         return { panelText, metrics, rawResponse: raw };
-    },
-
-    buildPrefsPage(settings: Gio.Settings, _: GettextFunc): Adw.PreferencesPage
-    {
-        const page = new Adw.PreferencesPage();
-
-        page.add(buildApiKeyGroup(settings, {
-            title: "Authentication",
-            description: "Provide a GitHub token with Copilot access. Run `gh auth token` in a terminal to get your current token.",
-            rowTitle: "GitHub Token",
-            settingsKey: "github-token",
-        }, _));
-
-        page.add(buildPollingGroup(settings, {
-            intervalKey: "refresh-interval",
-            triggerKey: "refresh-trigger",
-            rawResponseKey: "last-raw-response",
-            provider: GitHubCopilotProvider,
-        }, _));
-
-        page.add(buildDebugGroup(settings, {
-            rawResponseKey: "last-raw-response",
-            apiDescription: _("Last response body received from the GitHub Copilot API"),
-        }, _));
-
-        return page;
     },
 };

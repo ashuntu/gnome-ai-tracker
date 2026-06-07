@@ -1,4 +1,3 @@
-import Adw from "gi://Adw";
 import Gio from "gi://Gio";
 import Soup from "gi://Soup?version=3.0";
 
@@ -7,7 +6,7 @@ export type GettextFunc = (s: string) => string;
 
 /** A single named usage metric returned by a provider. */
 export interface ProviderMetric
-       {
+{
     /** Human-readable label, e.g. "Copilot Premium". */
     label: string;
     /** Formatted value to display, e.g. "42%", "∞", or "N/A". Used as fallback when spend/percent are absent. */
@@ -20,7 +19,7 @@ export interface ProviderMetric
 
 /** The result of a successful provider fetch. */
 export interface ProviderStatus
-       {
+{
     /** Value shown in the panel label (primary metric). */
     panelText: string;
     /** Full list of metrics shown in the popup menu. */
@@ -30,62 +29,83 @@ export interface ProviderStatus
 }
 
 /**
- * All provider implementations must satisfy this interface.
- *
- * Implementations are plain objects (not GObject subclasses) constructed
- * once per extension enable/disable cycle. They receive a shared Soup.Session
- * and a Gio.Settings instance so they can read their own credentials and
- * persist their last raw response.
+ * Serialisable data for a single configured provider instance.
+ * Stored as JSON inside the `provider-instances` GSettings key.
  */
-export interface IProvider
-       {
-    /** Unique identifier, used as GSettings key prefix and for logging. */
+export interface ProviderInstance
+{
+    /** Unique identifier for this instance (UUID). */
+    uuid: string;
+    /** Which provider type this is (matches IProviderType.id). */
+    typeId: string;
+    /** User-defined display name, e.g. "Work Copilot". */
+    name: string;
+    /** API key / token for this instance. */
+    apiKey: string;
+    /** Whether this instance is actively polled. */
+    enabled: boolean;
+    /** Last raw API response stored for debug display. */
+    rawResponse: string;
+}
+
+/**
+ * Static description and fetch logic for a provider type.
+ *
+ * Implementations are plain objects (singletons) that know how to
+ * fetch data and build prefs UI for any ProviderInstance of their type.
+ */
+export interface IProviderType
+{
+    /** Unique identifier matching ProviderInstance.typeId. */
     readonly id: string;
-    /** Display name shown in the panel tooltip and prefs list. */
+    /** Human-readable type name shown when selecting a provider type. */
     readonly displayName: string;
-    /** One-line description shown as the subtitle in the prefs provider row. */
+    /** One-line description of this provider type. */
     readonly description: string;
-    /** Icon name used for the panel indicator and the prefs row. */
+    /** Fallback icon name (from the icon theme). */
     readonly iconName: string;
     /**
      * Path to a bundled SVG icon, relative to the extension directory.
-     * When set, takes precedence over iconName for display purposes.
-     * e.g. "icons/copilot-symbolic.svg"
+     * When set, takes precedence over iconName.
      */
     readonly iconPath?: string;
     /**
-     * The GSettings key that holds this provider's API token/key.
-     * Used by the extension to skip fetching when the token is absent.
-     */
-    readonly settingsTokenKey: string;
-    /**
-     * The GSettings key where the last raw API response is stored.
-     * Used by the extension to persist responses and by prefs to display them.
-     */
-    readonly settingsRawResponseKey: string;
-    /**
-     * The GSettings key (boolean) controlling whether this provider is active.
-     * When false the extension skips polling and hides the provider from the menu.
-     */
-    readonly settingsEnabledKey: string;
-    /**
-     * Ordered list of metric labels this provider will always return.
-     * Used to pre-create popup menu items in the correct position at setup time.
+     * Ordered list of metric labels this provider type always returns.
+     * Used to pre-create popup menu items at setup time.
      */
     readonly metricLabels: readonly string[];
 
     /**
      * Fetch current usage data from the remote API.
-     * Must not throw — return a rejected promise on error so the caller can
-     * catch and display an error state.
+     * Receives the instance so it can read apiKey.
      */
-    fetchStatus(session: InstanceType<typeof Soup.Session>, settings: Gio.Settings): Promise<ProviderStatus>;
+    fetchStatus(
+        session: InstanceType<typeof Soup.Session>,
+        instance: ProviderInstance,
+    ): Promise<ProviderStatus>;
+}
 
-    /**
-     * Build the Adwaita preferences page for this provider.
-     * Called lazily when the user navigates to the provider in prefs.
-     * Receives the shared gettext function so strings are translated in the
-     * prefs process rather than the extension process.
-     */
-    buildPrefsPage(settings: Gio.Settings, gettext: GettextFunc): Adw.PreferencesPage;
+/** Deserialise the provider-instances settings key into an array of ProviderInstance. */
+export function loadInstances(settings: Gio.Settings): ProviderInstance[]
+{
+    const raw = settings.get_strv("provider-instances");
+    const result: ProviderInstance[] = [];
+    for (const entry of raw)
+    {
+        try
+        {
+            result.push(JSON.parse(entry) as ProviderInstance);
+        }
+        catch
+        {
+            // skip corrupt entries
+        }
+    }
+    return result;
+}
+
+/** Serialise a ProviderInstance array back into the settings key. */
+export function saveInstances(settings: Gio.Settings, instances: ProviderInstance[]): void
+{
+    settings.set_strv("provider-instances", instances.map(i => JSON.stringify(i)));
 }

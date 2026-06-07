@@ -161,6 +161,22 @@ const [ok, contents] = await file.load_contents_async(null);
 
 `stylesheet.css` is loaded automatically by GNOME Shell. Use CSS class names applied via `style_class` on St widgets. Avoid inline styles.
 
+## Number Formatting
+
+**Always format percentages and dollar amounts to exactly 2 decimal places.** Use `.toFixed(2)` — never `.toFixed(4)` or bare number interpolation.
+
+```ts
+// Correct
+`$${value.toFixed(2)}`       // "$1.23"
+`${percent.toFixed(2)}%`     // "42.00%"
+
+// Wrong — do not use
+`$${value.toFixed(4)}`       // too many decimal places
+`${percent}%`                // may produce "42.123456789%"
+```
+
+This applies everywhere a number is shown in the panel label, menu items, or any other UI surface. This rule has been intentionally set and must not be reverted.
+
 ## Contributing
 
 When adding or modifying code:
