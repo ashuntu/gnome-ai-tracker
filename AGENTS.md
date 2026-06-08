@@ -11,16 +11,19 @@ This is a GNOME Shell extension that tracks AI usage limits across various provi
 
 ```
 gnome-ai-tracker@example.com/
-├── extension.ts      # Main extension entry point (TypeScript source)
-├── ambient.d.ts      # GJS/GNOME Shell type augmentations
-├── tsconfig.json     # TypeScript compiler configuration
-├── eslint.config.js  # ESLint flat config
-├── Makefile          # Build, pack, install, clean targets
-├── package.json      # bun scripts and dependencies
-├── metadata.json     # Extension metadata (uuid, name, shell-version)
-├── stylesheet.css    # Custom CSS for extension UI elements
-└── dist/             # Compiled JS output (do not edit directly)
-    └── extension.js
+├── extension.ts              # Main extension entry point (TypeScript source)
+├── prefs.ts                  # Preferences UI (GTK4/Adwaita, separate process)
+├── ambient.d.ts              # GJS/GNOME Shell type augmentations
+├── tsconfig.json             # TypeScript compiler configuration
+├── eslint.config.js          # ESLint flat config
+├── Makefile                  # Build, pack, install, clean targets
+├── package.json              # bun scripts and dependencies
+├── metadata.json             # Extension metadata (uuid, name, shell-version)
+├── stylesheet.css            # Custom CSS for extension UI elements
+├── providers/                # Provider type implementations and shared prefs widgets
+├── icons/                    # Bundled provider SVG icons
+├── schemas/                  # GSettings schema and compiled binary
+├── dist/                     # Compiled JS output (do not edit directly)
 ```
 
 Source files are TypeScript (`.ts`). The compiled output goes to `dist/` and is what GNOME Shell loads. Do not edit files in `dist/` directly.
@@ -68,8 +71,10 @@ This project uses ES Modules (preferred over legacy `imports.*`):
 // GNOME platform libraries use the gi:// URI scheme
 import GObject from 'gi://GObject';
 import St from 'gi://St';
+import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import Soup from 'gi://Soup?version=3.0';
 
 // GNOME Shell internals use resource:// URIs
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -78,7 +83,14 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 // Local modules use relative paths with explicit .js extensions (required by NodeNext)
-import * as Utils from './lib/utils.js';
+import type {IProviderType, ProviderInstance, ProviderMetric} from './providers/index.js';
+import {loadInstances, PROVIDER_TYPES} from './providers/index.js';
+
+// Preferences UI uses GTK4/Adwaita APIs (separate process)
+import Adw from 'gi://Adw';
+import Gtk from 'gi://Gtk?version=4.0';
+import Gdk from 'gi://Gdk?version=4.0';
+import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 ```
 
 ### GObject Subclassing
@@ -86,11 +98,10 @@ import * as Utils from './lib/utils.js';
 Panel indicators and other GNOME Shell UI elements must be registered GObject subclasses:
 
 ```ts
-const Indicator = GObject.registerClass(
-class Indicator extends PanelMenu.Button {
+const MyIndicator = GObject.registerClass(
+class MyIndicator extends PanelMenu.Button {
     _init() {
         super._init(0.0, _('Indicator Name'));
-        // set up UI here
     }
 });
 ```
@@ -107,28 +118,51 @@ const MyWidget = GObject.registerClass({
 }, class MyWidget extends GObject.Object { /* ... */ });
 ```
 
+### Indicator Pattern (AiTrackerIndicator)
+
+The extension uses a custom indicator with a `setup()` method (rather than passing everything through `_init()`) and a `destroy()` cleanup method:
+
+```ts
+const AiTrackerIndicator = GObject.registerClass(
+class AiTrackerIndicator extends PanelMenu.Button {
+    _init() { super._init(0.5, _('AI Usage Tracker')); }
+
+    setup(settings, extensionPath, openPrefs) {
+        this._settings = settings;
+        this._session = new Soup.Session();
+        // connect signals, build menu, schedule refresh
+    }
+
+    destroy() {
+        // remove timer, disconnect signals, clear maps, null out refs
+        super.destroy();
+    }
+});
+```
+
 ### Extension Lifecycle
 
 ```ts
 export default class MyExtension extends Extension {
-    private _indicator: InstanceType<typeof Indicator> | null = null;
+    private _indicator: InstanceType<typeof AiTrackerIndicator> | null = null;
 
     enable() {
-        this._indicator = new Indicator();
+        const settings = this.getSettings('org.gnome.shell.extensions.gnome-ai-tracker');
+        this._indicator = new AiTrackerIndicator();
+        this._indicator.setup(settings, this.path, () => this.openPreferences());
         Main.panel.addToStatusArea(this.uuid, this._indicator);
     }
 
     disable() {
         this._indicator?.destroy();
         this._indicator = null;
-        // disconnect any signal handlers and clear all references
     }
 }
 ```
 
 ### Signals and Memory Management
 
-Always disconnect signal handlers in `disable()`. Store connection IDs and disconnect them explicitly, or use `connectObject`/`disconnectObject` for automatic cleanup. Failing to disconnect causes memory leaks and errors on re-enable.
+Always disconnect signal handlers in `disable()` or in the indicator's `destroy()`. Store connection IDs and disconnect them explicitly. Failing to disconnect causes memory leaks and errors on re-enable.
 
 ```ts
 private _settingsChangedId: number | null = null;
@@ -137,7 +171,7 @@ enable() {
     this._settingsChangedId = this._settings.connect('changed', this._onChanged.bind(this));
 }
 
-disable() {
+destroy() {
     if (this._settingsChangedId !== null) {
         this._settings.disconnect(this._settingsChangedId);
         this._settingsChangedId = null;
@@ -147,19 +181,36 @@ disable() {
 
 ### Async Operations
 
-Use `Gio` async APIs with `Promise` wrappers or the `async/await` pattern. Do not block the main thread.
+Use `Gio` async APIs with `Promise` wrappers or the `async/await` pattern. Do not block the main thread. Provider fetching uses `Soup.Session` and is async:
 
 ```ts
-import Gio from 'gi://Gio';
+import Soup from 'gi://Soup?version=3.0';
 
-// Promisify a Gio async method
-const file = Gio.File.new_for_path('/tmp/data.json');
-const [ok, contents] = await file.load_contents_async(null);
+const session = new Soup.Session();
+const result = await providerType.fetchStatus(session, instance);
 ```
 
 ### Styling
 
 `stylesheet.css` is loaded automatically by GNOME Shell. Use CSS class names applied via `style_class` on St widgets. Avoid inline styles.
+
+### Preferences
+
+`prefs.ts` runs in a separate GTK4 process. It exports a default class extending `ExtensionPreferences` and implements `fillPreferencesWindow()`. The preferences use `Adw.PreferencesWindow` with navigation pages (`Adw.NavigationPage`), subpages for add/edit flows, and reactive groups that rebuild when `provider-instances` GSettings key changes.
+
+## Provider Architecture
+
+Providers are implemented as **singleton objects** conforming to the `IProviderType` interface (defined in `providers/base.ts`). Each provider:
+
+- Has a unique `id`, `displayName`, `description`, `iconName` (optional `iconPath`)
+- Returns `metricLabels` (ordered list of metric names)
+- Implements `fetchStatus(session, instance) => Promise<ProviderStatus>`
+
+Provider instances are serialised as `ProviderInstance` objects stored in the `provider-instances` GSettings string array key. Use `loadInstances(settings)` / `saveInstances(settings, instances)` (from `providers/base.ts`) to read/write.
+
+Registered provider types are listed in `PROVIDER_TYPES` (from `providers/index.ts`).
+
+Shared prefs widgets (`providers/prefs-widgets.ts`) provide `buildApiKeyGroup()`, `buildPollingGroup()`, and `buildDebugGroup()` for provider settings pages.
 
 ## Number Formatting
 
@@ -190,6 +241,7 @@ When adding or modifying code:
 7. Prefer `const` over `let`; avoid `var`.
 8. Do not use semicolons to terminate property definitions inside GObject metadata objects.
 9. Local import paths must use `.js` extensions (NodeNext module resolution maps them to `.ts` at compile time).
+10. When adding a new provider type, add it to `providers/` (as a new file implementing `IProviderType`) and register it in `providers/index.ts`'s `PROVIDER_TYPES` array. Add a bundled icon to `icons/` if needed.
 
 ## Reference Documentation
 
@@ -207,6 +259,7 @@ When adding or modifying code:
   - GJS built-ins: https://gjs-docs.gnome.org/gjs/
   - Gio: https://gjs-docs.gnome.org/gio20/
   - GLib: https://gjs-docs.gnome.org/glib20/
+  - Soup 3: https://gjs-docs.gnome.org/soup30/
   - St (Shell Toolkit): search at https://gjs-docs.gnome.org/
 - **GNOME Shell Extension Guides:** https://gjs.guide/extensions/
   - Getting Started: https://gjs.guide/extensions/development/creating.html
@@ -242,3 +295,5 @@ Do **not** instantiate `new Adw.PreferencesWindow()` directly in extension code.
 - Extensions run in the `user` session mode by default. To run on the lock screen, add `"unlock-dialog"` to `session-modes` in `metadata.json` and handle `enable()`/`disable()` being called on lock/unlock.
 - As of GNOME 45, extensions must use ES Modules. The legacy `imports.*` pattern and CommonJS-style `const X = Me.imports.x` are no longer supported.
 - GNOME Shell 50 adds `easeAsync()` for awaitable Clutter transitions, and one-shot GLib timer helpers: `GLib.idle_add_once()`, `GLib.timeout_add_once()`, `GLib.timeout_add_seconds_once()`.
+- Provider instances are stored as JSON strings in the `provider-instances` GSettings `strv` key. The `providers/base.ts` module provides `loadInstances()` / `saveInstances()` helpers.
+- Providers use `Soup.Session` (Soup 3.0) for HTTP requests. A single session is shared across the indicator's lifetime.
