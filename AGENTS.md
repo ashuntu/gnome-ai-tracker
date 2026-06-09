@@ -43,11 +43,12 @@ Source files are TypeScript (`.ts`). The compiled output goes to `dist/` and is 
 
 ### Required checks before finishing any task
 
-Run both of these and fix all errors before considering work done:
+Run all three and fix all errors before considering work done:
 
 ```sh
-bun run typecheck   # tsc --noEmit: must exit 0 with no diagnostics
-bun run lint        # eslint .: must exit 0 with no errors
+bun run typecheck       # tsc --noEmit: must exit 0 with no diagnostics
+bun run lint            # eslint .: must exit 0 with no errors
+bun run test:coverage   # bun test: must exit 0 with no failures, and equal or exceed existing coverage percentage
 ```
 
 Warnings from `@typescript-eslint/no-explicit-any` are permitted when dealing with untyped GNOME Shell internals, but prefer typed alternatives where possible.
@@ -240,7 +241,7 @@ When adding or modifying code:
 6. Follow the [GJS Style Guide](https://gjs.guide/guides/gjs/style-guide.html): `camelCase` for variables/methods, `PascalCase` for classes, `UPPER_SNAKE_CASE` for constants.
 7. Prefer `const` over `let`; avoid `var`.
 8. Do not use semicolons to terminate property definitions inside GObject metadata objects.
-9. Local import paths must use `.js` extensions (NodeNext module resolution maps them to `.ts` at compile time).
+9. The tsconfig uses `module: "ESNext"` with `moduleResolution: "bundler"` so extensionless imports are allowed. However, local imports in source files (extension.ts, prefs.ts, providers/*.ts) should still use `.js` extensions for GJS runtime compatibility (GJS ESM requires file extensions). Test file imports should omit `.js` extensions since bun resolves them natively.
 10. When adding a new provider type, add it to `providers/` (as a new file implementing `IProviderType`) and register it in `providers/index.ts`'s `PROVIDER_TYPES` array. Add a bundled icon to `icons/` if needed.
 
 ## Reference Documentation
