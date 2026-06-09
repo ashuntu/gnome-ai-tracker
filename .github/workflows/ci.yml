@@ -29,6 +29,9 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Test
+        run: bun run test:coverage
+
       - name: Build extension
         run: make pack
 
