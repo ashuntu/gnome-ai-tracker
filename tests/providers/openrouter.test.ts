@@ -62,10 +62,10 @@ describe("OpenRouter provider", () =>
             },
             wantPanelText: "25.50%",
             wantMetrics: [
-                { label: "Monthly spend", value: "Monthly spend: $25.50", spend: 25.50, percent: 25.5 },
-                { label: "Daily spend", value: "Daily spend: $5.00", spend: 5 },
-                { label: "Credits remaining", value: "Credits remaining: $74.50", percent: 25.5 },
-                { label: "Total spend", value: "Total spend: $100.00", spend: 100 },
+                { label: "Monthly spend", value: "$25.50", spend: 25.50, percent: 25.5 },
+                { label: "Daily spend", value: "$5.00", spend: 5 },
+                { label: "Credits remaining", value: "$74.50", percent: 25.5 },
+                { label: "Total spend", value: "$100.00", spend: 100 },
             ],
         },
         {
@@ -84,10 +84,10 @@ describe("OpenRouter provider", () =>
             },
             wantPanelText: "$42.75",
             wantMetrics: [
-                { label: "Monthly spend", value: "Monthly spend: $42.75", spend: 42.75 },
-                { label: "Daily spend", value: "Daily spend: $10.00", spend: 10 },
-                { label: "Credits remaining", value: "Credits remaining: N/A" },
-                { label: "Total spend", value: "Total spend: $150.00", spend: 150 },
+                { label: "Monthly spend", value: "$42.75", spend: 42.75 },
+                { label: "Daily spend", value: "$10.00", spend: 10 },
+                { label: "Credits remaining", value: "N/A" },
+                { label: "Total spend", value: "$150.00", spend: 150 },
             ],
         },
         {
@@ -106,10 +106,10 @@ describe("OpenRouter provider", () =>
             },
             wantPanelText: "$0.00",
             wantMetrics: [
-                { label: "Monthly spend", value: "Monthly spend: $0.00", spend: 0 },
-                { label: "Daily spend", value: "Daily spend: $0.00", spend: 0 },
-                { label: "Credits remaining", value: "Credits remaining: N/A" },
-                { label: "Total spend", value: "Total spend: $0.00", spend: 0 },
+                { label: "Monthly spend", value: "$0.00", spend: 0 },
+                { label: "Daily spend", value: "$0.00", spend: 0 },
+                { label: "Credits remaining", value: "N/A" },
+                { label: "Total spend", value: "$0.00", spend: 0 },
             ],
         },
         {
@@ -117,10 +117,10 @@ describe("OpenRouter provider", () =>
             body: {},
             wantPanelText: "N/A",
             wantMetrics: [
-                { label: "Monthly spend", value: "Monthly spend: N/A" },
-                { label: "Daily spend", value: "Daily spend: N/A" },
-                { label: "Credits remaining", value: "Credits remaining: N/A" },
-                { label: "Total spend", value: "Total spend: N/A" },
+                { label: "Monthly spend", value: "N/A" },
+                { label: "Daily spend", value: "N/A" },
+                { label: "Credits remaining", value: "N/A" },
+                { label: "Total spend", value: "N/A" },
             ],
         },
         {

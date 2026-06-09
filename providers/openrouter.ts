@@ -36,13 +36,13 @@ const METRIC_LABELS: Record<MetricKey, string> = {
 
 const METRIC_KEYS: MetricKey[] = ["usage_monthly", "usage_daily", "limit_remaining", "usage"];
 
-function _formatCredits(value: number | null | undefined, label: string): string
+function _formatCredits(value: number | null | undefined): string
 {
     if (value === null || value === undefined)
     {
-        return `${label}: N/A`;
+        return "N/A";
     }
-    return `${label}: $${value.toFixed(2)}`;
+    return `$${value.toFixed(2)}`;
 }
 
 function _formatPanelText(data: OpenRouterKeyData | undefined): string
@@ -106,7 +106,7 @@ export const OpenRouterProviderType: IProviderType = {
         const metrics: ProviderMetric[] = [
             {
                 label: METRIC_LABELS.usage_monthly,
-                value: _formatCredits(data?.usage_monthly, METRIC_LABELS.usage_monthly),
+                value: _formatCredits(data?.usage_monthly),
                 spend: data?.usage_monthly ?? undefined,
                 percent: (data?.limit !== null && data?.limit !== undefined && data.limit > 0)
                     ? parseFloat(((data.usage_monthly / data.limit) * 100).toFixed(2))
@@ -114,19 +114,19 @@ export const OpenRouterProviderType: IProviderType = {
             },
             {
                 label: METRIC_LABELS.usage_daily,
-                value: _formatCredits(data?.usage_daily, METRIC_LABELS.usage_daily),
+                value: _formatCredits(data?.usage_daily),
                 spend: data?.usage_daily ?? undefined,
             },
             {
                 label: METRIC_LABELS.limit_remaining,
-                value: _formatCredits(data?.limit_remaining, METRIC_LABELS.limit_remaining),
+                value: _formatCredits(data?.limit_remaining),
                 percent: (data?.limit !== null && data?.limit !== undefined && data.limit > 0 && data.limit_remaining !== null && data.limit_remaining !== undefined)
                     ? parseFloat((((data.limit - data.limit_remaining) / data.limit) * 100).toFixed(2))
                     : undefined,
             },
             {
                 label: METRIC_LABELS.usage,
-                value: _formatCredits(data?.usage, METRIC_LABELS.usage),
+                value: _formatCredits(data?.usage),
                 spend: data?.usage ?? undefined,
             },
         ];
