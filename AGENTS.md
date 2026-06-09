@@ -4,7 +4,7 @@
 
 This is a GNOME Shell extension that tracks AI usage limits across various providers and displays them in the system panel. It is written in TypeScript (compiled to GJS) and targets GNOME Shell 50.
 
-**UUID:** `gnome-ai-tracker@example.com`
+**UUID:** `gnome-ai-tracker@ashuntu.github.io`
 **License:** AGPL-3.0-only
 
 ## File Structure
