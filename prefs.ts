@@ -73,8 +73,8 @@ function _addGeneralPage(window: Adw.PreferencesWindow, settings: Gio.Settings):
         const currentVal = settings.get_string("tray-display-mode") ?? "highest";
 
         modeEntries = [
-            { label: _("Highest % across providers"), value: "highest" },
             { label: _("All providers"), value: "all" },
+            { label: _("Highest usage"), value: "highest" },
         ];
 
         const instances = loadInstances(settings);
