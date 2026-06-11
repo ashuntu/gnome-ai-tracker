@@ -20,7 +20,7 @@ Tracks your AI usage limits across various providers.
 Log out and back in, then enable the extension:
 
 ```sh
-gnome-extensions enable gnome-ai-tracker@example.com
+gnome-extensions enable gnome-ai-tracker@ashuntu.github.io
 ```
 
 ### Build and Install from Source
@@ -34,7 +34,7 @@ make install
 Log out and back in, then enable the extension:
 
 ```sh
-gnome-extensions enable gnome-ai-tracker@example.com
+gnome-extensions enable gnome-ai-tracker@ashuntu.github.io
 ```
 
 ## Usage
