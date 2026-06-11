@@ -1,5 +1,5 @@
 NAME=gnome-ai-tracker
-DOMAIN=example.com
+DOMAIN=ashuntu.github.io
 SCHEMA_DIR=schemas
 COMPILED_SCHEMA=$(SCHEMA_DIR)/gschemas.compiled
 
@@ -36,7 +36,7 @@ clean:
 	@rm -rf dist node_modules bun.lock $(NAME).zip $(COMPILED_SCHEMA)
 
 run:
-	gnome-extensions disable gnome-ai-tracker@example.com
+	gnome-extensions disable $(NAME)@$(DOMAIN)
 	make install
-	gnome-extensions enable gnome-ai-tracker@example.com
+	gnome-extensions enable $(NAME)@$(DOMAIN)
 	dbus-run-session gnome-shell --devkit --wayland
