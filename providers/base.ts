@@ -22,7 +22,7 @@ export interface ProviderStatus
 {
     /** Value shown in the panel label (primary metric). */
     panelText: string;
-    /** Full list of metrics shown in the popup menu. */
+    /** Full list of metrics shown in the popup menu, in the same order as `IProviderType.metricLabels`. */
     metrics: ProviderMetric[];
     /** Raw response body, stored for debug display. */
     rawResponse: string;
@@ -71,7 +71,8 @@ export interface IProviderType
     readonly iconPath?: string;
     /**
      * Ordered list of metric labels this provider type always returns.
-     * Used to pre-create popup menu items at setup time.
+     * Used to pre-create popup menu items at setup time. The `metrics` array
+     * returned by `fetchStatus` must be in this same order.
      */
     readonly metricLabels: readonly string[];
 
