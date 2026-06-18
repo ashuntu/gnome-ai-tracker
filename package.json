@@ -1,6 +1,6 @@
 {
   "name": "gnome-ai-tracker",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Tracks AI usage limits across various providers",
   "type": "module",
   "private": true,
