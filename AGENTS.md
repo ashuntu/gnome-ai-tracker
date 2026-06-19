@@ -10,7 +10,7 @@ This is a GNOME Shell extension that tracks AI usage limits across various provi
 ## File Structure
 
 ```
-gnome-ai-tracker@example.com/
+gnome-ai-tracker
 ├── extension.ts              # Main extension entry point (TypeScript source)
 ├── prefs.ts                  # Preferences UI (GTK4/Adwaita, separate process)
 ├── ambient.d.ts              # GJS/GNOME Shell type augmentations
