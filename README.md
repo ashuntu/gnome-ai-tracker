@@ -7,6 +7,15 @@ Tracks your AI usage limits across various providers.
 
 ## Installation
 
+### Install from GitHub releases
+
+1. Go to the [Releases page](https://github.com/ashuntu/gnome-ai-tracker/releases)
+2. Find the latest release and download the corresponding `gnome-ai-tracker.zip` file
+3. Run
+   ```sh
+   gnome-extensions install --force gnome-ai-tracker.zip
+   ```
+
 ### Install from GitHub CI
 
 1. Go to the [Actions](https://github.com/ashuntu/gnome-ai-tracker/actions) tab
@@ -43,23 +52,23 @@ gnome-extensions enable gnome-ai-tracker@ashuntu.github.io
 
 1. Click the extension icon and choose "Preferences..."
 
-![](./screenshots/setup1.png)
+![GNOME extension icon with dropdown for Preferences](./screenshots/setup1.png)
 
 2. Navigate to the Providers tab and click Add Provider
 
-![](./screenshots/setup2.png)
+![Empty Providers tab of the Preferences page of the extension](./screenshots/setup2.png)
 
 3. [Generate a GitHub token](https://github.com/settings/tokens) (classic, no permissions needed) and add it to the Token field
 
-![](./screenshots/setup3.png)
+![Adding a GitHub Copilot provider with the API key field focused](./screenshots/setup3.png)
 
 4. GitHub Copilot is now being tracked!
 
-![](./screenshots/setup4.png)
+![Providers page of the extension Preferences, with Copilot now visible](./screenshots/setup4.png)
 
 5. See GitHub Copilot usage in top bar
 
-![](./screenshots/setup5.png)
+![Copilot usage visible in the GNOME top bar](./screenshots/setup5.png)
 
 ## Contributing
 
