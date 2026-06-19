@@ -27,7 +27,7 @@ import { ExtensionPreferences, gettext as _ } from "resource:///org/gnome/Shell/
 
 import { PROVIDER_TYPES, loadInstances, saveInstances } from "./providers/index.js";
 import type { IProviderType, ProviderInstance } from "./providers/index.js";
-import { buildApiKeyGroup, buildPollingGroup, buildDebugGroup } from "./providers/prefs-widgets.js";
+import { buildApiKeyGroup, buildPollingGroup, buildDebugGroup, buildIconGroup } from "./providers/prefs-widgets.js";
 
 export default class AiTrackerPreferences extends ExtensionPreferences
 {
@@ -214,7 +214,14 @@ function _buildInstanceRow(
     row.instanceUuid = instance.uuid;
 
     let prefixImage: Gtk.Image;
-    if (providerType.iconPath)
+    if (instance.iconOverride)
+    {
+        prefixImage = new Gtk.Image({
+            icon_name: instance.iconOverride,
+            pixel_size: 32,
+        });
+    }
+    else if (providerType.iconPath)
     {
         const file = Gio.File.new_for_path(`${extensionPath}/${providerType.iconPath}`);
         prefixImage = new Gtk.Image({
@@ -259,7 +266,7 @@ function _buildInstanceRow(
 
     row.connect("activated", () =>
     {
-        _pushInstanceSettingsPage(window, settings, instance, providerType);
+        _pushInstanceSettingsPage(window, settings, extensionPath, instance, providerType);
     });
 
     const dragSource = new Gtk.DragSource({ actions: Gdk.DragAction.MOVE });
@@ -456,6 +463,7 @@ function _pushAddProviderPage(
 function _pushInstanceSettingsPage(
     window: Adw.PreferencesWindow,
     settings: Gio.Settings,
+    extensionPath: string,
     instance: ProviderInstance,
     providerType: IProviderType,
 ): void
@@ -484,6 +492,12 @@ function _pushInstanceSettingsPage(
     });
 
     infoGroup.add(nameRow);
+
+    page.add(buildIconGroup(settings, {
+        instance,
+        providerType,
+        extensionPath,
+    }, _));
 
     let apiKeyGroupTitle: string;
     let apiKeyGroupDesc: string;

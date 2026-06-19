@@ -274,8 +274,16 @@ const AiTrackerIndicator = GObject.registerClass(
             this._applyDisplayMode();
         }
 
-        private _makeProviderIcon(providerType: IProviderType): InstanceType<typeof St.Icon>
+        private _makeProviderIcon(providerType: IProviderType, instance: ProviderInstance): InstanceType<typeof St.Icon>
         {
+            if (instance.iconOverride)
+            {
+                return new St.Icon({
+                    gicon: Gio.ThemedIcon.new(instance.iconOverride),
+                    style_class: "system-status-icon ai-tracker-icon",
+                    y_align: Clutter.ActorAlign.CENTER,
+                });
+            }
             if (providerType.iconPath)
             {
                 const file = Gio.File.new_for_path(`${this._extensionPath}/${providerType.iconPath}`);
@@ -330,7 +338,7 @@ const AiTrackerIndicator = GObject.registerClass(
                         continue;
                     }
                     const text = this._lastPanelTexts.get(instance.uuid) ?? "—";
-                    this._box.add_child(this._makeProviderIcon(providerType));
+                    this._box.add_child(this._makeProviderIcon(providerType, instance));
                     this._box.add_child(new St.Label({
                         text,
                         y_align: Clutter.ActorAlign.CENTER,
@@ -377,7 +385,7 @@ const AiTrackerIndicator = GObject.registerClass(
             const providerType = this._getProviderType(displayInstance);
             if (providerType)
             {
-                this._box.add_child(this._makeProviderIcon(providerType));
+                this._box.add_child(this._makeProviderIcon(providerType, displayInstance));
             }
             else
             {
