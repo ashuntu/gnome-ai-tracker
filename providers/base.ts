@@ -46,6 +46,12 @@ export interface ProviderInstance
     enabled: boolean;
     /** Last raw API response stored for debug display. */
     rawResponse: string;
+    /**
+     * Icon name override chosen by the user. When set, takes precedence over
+     * the provider type's default iconName / iconPath. Empty string means use
+     * the provider default.
+     */
+    iconOverride?: string;
 }
 
 /**
