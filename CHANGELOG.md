@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/ashuntu/gnome-ai-tracker/compare/v1.1.0...v1.1.1) (2026-06-23)
+
+
+### Bug Fixes
+
+* **ci:** Fix Ci failing to upload builds ([f754c5d](https://github.com/ashuntu/gnome-ai-tracker/commit/f754c5d404fdb28adba95a6a39c500ec9b600b72))
+
 ## [1.1.0](https://github.com/ashuntu/gnome-ai-tracker/compare/v1.0.0...v1.1.0) (2026-06-19)
 
 
