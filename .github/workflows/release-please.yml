@@ -13,6 +13,9 @@ name: release-please
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@v5
         id: release
@@ -20,8 +23,29 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           release-type: node
 
+  upload-artifact:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libglib2.0-bin
+
+      - name: Install JS dependencies
+        run: bun install
+
+      - name: Build extension
+        run: make pack
+
       - name: Upload release artifact
-        if: ${{ steps.release.outputs.release_created }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload ${{ steps.release.outputs.tag_name }} ./gnome-ai-tracker.zip
+        run: gh release upload ${{ needs.release-please.outputs.tag_name }} ./gnome-ai-tracker.zip
